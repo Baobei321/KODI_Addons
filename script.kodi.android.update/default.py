@@ -61,6 +61,9 @@ def log(msg, level=xbmc.LOGDEBUG):
     xbmc.log(ADDON_ID + '-' + ADDON_VERSION + '-' + (msg), level)
 
 def selectDialog(label, items, pselect=-1, uDetails=True):
+    if isinstance(pselect, list):
+        if len(pselect) > 0: pselect = pselect[0]
+        else:                pselect = -1
     select = xbmcgui.Dialog().select(label, items, preselect=pselect, useDetails=uDetails)
     if select >= 0: return select
     return None
@@ -87,7 +90,7 @@ class Installer(object):
         
         
     def chkVer(self):
-        try:    build = int(re.compile('Android (\d+)').findall(VERSION)[0])
+        try:    build = int(re.compile(r'Android (\d+)').findall(VERSION)[0])
         except: build = MIN_VER
         if build < MIN_VER:
             xbmcgui.Dialog().notification(ADDON_NAME, VERSION, ICON, 8000)
@@ -146,7 +149,7 @@ class Installer(object):
                     liz.setArt({'icon':ICON,'thumb':ICON})
                     yield liz
                 except: #files
-                    label, label2 = re.compile("(.*?)\s(.*)").match(item).groups()
+                    label, label2 = re.compile(r"(.*?)\s(.*)").match(item).groups()
                     if '.apk' in label:
                         liz = xbmcgui.ListItem('%s.apk'%label.split('.apk')[0],'%s %s'%(label.split('.apk')[1], label2.replace('MiB','MB ').strip()),path='%s%s.apk'%(url,label.split('.apk')[0]))
                         liz.setArt({'icon':ICON,'thumb':ICON})
@@ -244,4 +247,4 @@ class Installer(object):
         # xbmc.executebuiltin('XBMC.AlarmClock(shutdowntimer,XBMC.Quit(),0.5,true)')
 
 
-if __name__ == '__main__': Installer()
+if __name__ == '__main__': Installer()._run()
