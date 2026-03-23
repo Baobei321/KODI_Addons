@@ -1,4 +1,4 @@
-#  Copyright (C) 2024 Team-Kodi
+#  Copyright (C) 2026 Team-Kodi
 #
 #  This file is part of script.kodi.android.update
 #

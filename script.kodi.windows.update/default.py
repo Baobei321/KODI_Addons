@@ -1,4 +1,4 @@
-#  Copyright (C) 2023 Team-Kodi
+#  Copyright (C) 2026 Team-Kodi
 #
 #  This file is part of script.kodi.windows.update
 #
@@ -7,14 +7,16 @@
 #
 # -*- coding: utf-8 -*-
 
-import os, time, datetime, traceback, re, threading, json
-import socket, subprocess, sys
+import platform, traceback, sys
+import os, time, datetime, re, threading, json
+import socket, subprocess
 import xbmc, xbmcgui, xbmcvfs, xbmcaddon
 
 from bs4 import BeautifulSoup
 from simplecache import SimpleCache
 from six.moves import urllib
 from contextlib import contextmanager
+from kodi_six import xbmc, xbmcaddon, xbmcplugin, xbmcgui, xbmcvfs
 
 # Plugin Info
 ADDON_ID      = 'script.kodi.windows.update'
@@ -33,7 +35,7 @@ DEBUG     = REAL_SETTINGS.getSetting('Enable_Debugging') == 'true'
 CLEAN     = REAL_SETTINGS.getSetting('Disable_Maintenance') == 'false'
 BASE_URL  = 'http://mirrors.kodi.tv/'
 WIND_URL  = BASE_URL + '%s/windows/%s/'
-BRANCHS   =  {21:'omega',20:'nexus',19:'matrix',18:'leia',17:'krypton',16:'jarvis',15:'isengard',14:'helix',13:'gotham','':''}
+BRANCHS   =  {22:'piers',21:'omega',20:'nexus',19:'matrix',18:'leia',17:'krypton',16:'jarvis',15:'isengard',14:'helix',13:'gotham','':''}
 BUILD_OPT = {'nightlies':LANGUAGE(30017),'releases':LANGUAGE(30016),'snapshots':LANGUAGE(30015),'test-builds':LANGUAGE(30018)}
 VERSION   = REAL_SETTINGS.getSetting("Version")
 
@@ -44,7 +46,7 @@ except:
     BUILD = ''
     BRANCH = 'master'
 
-PLATFORM  = {True:"win64", False:"win32", None:""}[('64' in REAL_SETTINGS.getSetting("Platform") or None)]
+PLATFORM = {True:"win64", False:"win32", None:""}[('64' in REAL_SETTINGS.getSetting("Platform") or None)]
 
 def log(msg, level=xbmc.LOGDEBUG):
     if DEBUG == False and level != xbmc.LOGERROR: return
@@ -52,10 +54,18 @@ def log(msg, level=xbmc.LOGDEBUG):
     xbmc.log(ADDON_ID + '-' + ADDON_VERSION + '-' + (msg), level)
 
 def selectDialog(label, items, pselect=-1, uDetails=True):
+    if isinstance(pselect, list):
+        if len(pselect) > 0: pselect = pselect[0]
+        else:                pselect = -1
     select = xbmcgui.Dialog().select(label, items, preselect=pselect, useDetails=uDetails)
     if select >= 0: return select
     return None
         
+def log(msg, level=xbmc.LOGDEBUG):
+    if DEBUG == False and level != xbmc.LOGERROR: return
+    if level == xbmc.LOGERROR: msg += ' ,' + traceback.format_exc()
+    xbmc.log(ADDON_ID + '-' + ADDON_VERSION + '-' + (msg), level)
+
 @contextmanager
 def busy_dialog():
     log('globals: busy_dialog')
@@ -63,31 +73,28 @@ def busy_dialog():
     try: yield
     finally: xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
 
-socket.setdefaulttimeout(TIMEOUT)
 class Installer(object):
     def __init__(self):
         self.myMonitor = xbmc.Monitor()
-        self.cache    = SimpleCache()
-        if self.chkUWP(): return
-        self.killKodi = threading.Timer(2.0, self.killME)
-        self.lastURL  = (REAL_SETTINGS.getSetting("LastURL") or self.buildMain())
-        self.lastPath = REAL_SETTINGS.getSetting("LastPath")
+        self.cache     = SimpleCache()
+        self.lastURL   = REAL_SETTINGS.getSetting("LastURL")
+        self.lastPATH  = REAL_SETTINGS.getSetting("LastPATH")
+        self.chkUWP()
+
+
+    def _run(self):
+        if not self.lastURL: self.lastURL = self.buildMain()
         self.selectPath(self.lastURL)
         
-    
+        
     def chkUWP(self):
         isUWP = (xbmc.getCondVisibility("system.platform.uwp") or sys.platform == "win10" or re.search(r"[/\\]WindowsApps[/\\]XBMCFoundation\.Kodi_", xbmcvfs.translatePath("special://xbmc/")))
-        if isUWP: return self.disable()
-        return isUWP
+        if isUWP:
+            xbmcgui.Dialog().notification(ADDON_NAME, VERSION, ICON, 8000)
+            if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30009), LANGUAGE(30012)): return True 
+            xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method":"Addons.SetAddonEnabled","params":{"addonid":"%s","enabled":false}, "id": 1}'%(ADDON_ID))
+            xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30011), ICON, 4000)
         
-        
-    def disable(self):
-        xbmcgui.Dialog().notification(ADDON_NAME, VERSION, ICON, 8000)
-        if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30009), LANGUAGE(30012)): return True 
-        xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method":"Addons.SetAddonEnabled","params":{"addonid":"%s","enabled":false}, "id": 1}'%(ADDON_ID))
-        xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30011), ICON, 4000)
-        return True
-
         
     def openURL(self, url):
         if url is None: return
@@ -133,14 +140,14 @@ class Installer(object):
                 try: #folders
                     if 'uwp' in item.lower(): continue #ignore UWP builds
                     label, label2 = re.compile("(.*?)/-(.*)").match(item).groups()
-                    if label.lower() == PLATFORM.lower(): label2 = LANGUAGE(30014)%REAL_SETTINGS.getSetting("Platform")
-                    elif label.lower() == BRANCH.lower(): label2 = LANGUAGE(30021)%(BUILD.get('major',''),BUILD.get('minor',''),BUILD.get('revision',''))
-                    else: label2 = '' #Don't use time-stamp for folders
+                    if   label.lower() == PLATFORM.lower(): label2 = LANGUAGE(30014)%REAL_SETTINGS.getSetting("Platform")
+                    elif label.lower() == BRANCH.lower():   label2 = LANGUAGE(30021)%(BUILD.get('major',''),BUILD.get('minor',''),BUILD.get('revision',''))
+                    else:                                   label2 = '' #Don't use time-stamp for folders
                     liz = (xbmcgui.ListItem(label.title(),label2,path=(url + label)))
                     liz.setArt({'icon':ICON,'thumb':ICON})
                     yield liz
                 except: #files
-                    label, label2 = re.compile("(.*?)\s(.*)").match(item).groups()
+                    label, label2 = re.compile(r"(.*?)\s(.*)").match(item).groups()
                     if '.exe' in label: 
                         liz = (xbmcgui.ListItem('%s.exe'%label.split('.exe')[0],'%s %s'%(label.split('.exe')[1], label2.replace('MiB','MB ').strip()),path='%s%s.exe'%(url,label.split('.exe')[0])))
                         liz.setArt({'icon':ICON,'thumb':ICON})
@@ -151,10 +158,6 @@ class Installer(object):
         REAL_SETTINGS.setSetting("LastURL",url)
         REAL_SETTINGS.setSetting("LastPath",path)
         
-            
-    def okDialog(self, str1, str2='', str3='', header=ADDON_NAME):
-        xbmcgui.Dialog().ok(header, str1, str2, str3)
-        
     
     def selectPath(self, url, bypass=False):
         log('selectPath, url = ' + str(url))
@@ -163,7 +166,7 @@ class Installer(object):
             items = list(self.buildItems(url))
             if   len(items) == 0: break
             elif len(items) == 2  and not bypass and items[0].getLabel().lower() == 'parent directory' and not items[1].getLabel().startswith('.exe'): select = 1 #If one folder bypass selection.
-            else: select = selectDialog(url.replace(BASE_URL,'./').replace('//','/'), items)
+            else: select = selectDialog(url.replace(BASE_URL,'./').replace('//','/'), items, [idx for idx, item in enumerate(items) if item.getLabel() in self.lastPATH])
             if select is None: return #return on cancel.
             label  = items[select].getLabel()
             newURL = items[select].getPath()
@@ -171,7 +174,7 @@ class Installer(object):
             if newURL.endswith('.exe'): 
                 dest = xbmcvfs.translatePath(os.path.join(SETTINGS_LOC,label))
                 self.setLastPath(url,dest)
-                return self.downloadEXE(newURL,dest)
+                return self.downloadFile(newURL,dest)
             elif label.lower() == 'parent directory' and "windows" in preURL.lower():
                 return self.selectPath(preURL, True)
             elif label.lower() == 'parent directory' and "windows" not in preURL.lower():
@@ -181,35 +184,25 @@ class Installer(object):
             
     def fileExists(self, dest):
         if xbmcvfs.exists(dest):
-            if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30004), dest.rsplit('/', 1)[-1], nolabel=LANGUAGE(30005), yeslabel=LANGUAGE(30006)): return False
-        elif CLEAN and xbmcvfs.exists(self.lastPath): self.deleteEXE(self.lastPath)
+            if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30004), dest.rsplit('/', 1)[-1], nolabel=LANGUAGE(30005), yeslabel=LANGUAGE(30006)): return True
         return False
         
         
-    def deleteEXE(self, path):
-        #some file systems don't release the file lock instantly.
-        for count in range(3):
-            if self.myMonitor.waitForAbort(1): return 
-            try: 
-                if xbmcvfs.delete(path): return
-            except: pass
-        
-        
-    def downloadEXE(self, url, dest):
-        if self.fileExists(dest): return self.installEXE(dest)
-        start_time = time.time()
-        dia = xbmcgui.DialogProgress()
-        fle = dest.rsplit('\\', 1)[1]
-        dia.create(ADDON_NAME, LANGUAGE(30002))
-        try: urllib.request.urlretrieve(url.rstrip('/'), dest, lambda nb, bs, fs: self.pbhook(nb, bs, fs, dia, start_time, fle))
-        except Exception as e:
-            dia.close()
-            xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30001), ICON, 4000)
-            log("downloadAPK, Failed! (%s) %s"%(url,str(e)), xbmc.LOGERROR)
-            return self.deleteEXE(dest)
-        return self.installEXE(dest)
+    def downloadFile(self, url, dest):
+        if not self.fileExists(dest):
+            start_time = time.time()
+            dia = xbmcgui.DialogProgress()
+            fle = dest.rsplit('\\', 1)[1]
+            dia.create(ADDON_NAME, LANGUAGE(30002))
+            try: urllib.request.urlretrieve(url.rstrip('/'), dest, lambda nb, bs, fs: self.pbhook(nb, bs, fs, dia, start_time, fle))
+            except Exception as e:
+                dia.close()
+                xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30001), ICON, 4000)
+                self.deleteFile(dest)
+                return log("downloadAPK, Failed! (%s) %s"%(url,str(e)), xbmc.LOGERROR)
+        return self.installFile(dest)
 
-
+            
     def pbhook(self, numblocks, blocksize, filesize, dia, start_time, fle):
         try: 
             percent = min(numblocks * blocksize * 100 / filesize, 100) 
@@ -232,15 +225,28 @@ class Installer(object):
         if dia.iscanceled(): raise Exception
 
 
-    def installEXE(self, exefile):
-        if not xbmcvfs.exists(exefile): return
-        xbmc.executebuiltin('AlarmClock(shutdowntimer,XBMC.Quit(),2.0,true)')
-        self.killKodi.start()
-        subprocess.call(exefile, shell=True)
-        
+    def deleteFile(self, file):
+        try:
+            count = 0
+            while not self.myMonitor.abortRequested() and count < 15:
+                if   self.myMonitor.waitForAbort(1): break
+                elif xbmcvfs.exists(file):
+                    count += 1 
+                    if xbmcvfs.delete(file):
+                        log(f'Installer: deleteLast = {file}')
+                        break
+        except Exception as e: log("Installer: deleteLast Failed! " + str(e), xbmc.LOGERROR)
+            
+
+    def installFile(self, exefile=None):
+        if exefile and xbmcvfs.exists(exefile):
+            xbmc.executebuiltin('AlarmClock(shutdowntimer,XBMC.Quit(),2.0,true)')
+            threading.Timer(2.0, self.killME).start()
+            subprocess.call(exefile, shell=True)
+            
         
     def killME(self):
         subprocess.call('taskkill /f /im kodi.exe')
         
         
-if __name__ == '__main__': Installer()
+if __name__ == '__main__': Installer()._run()

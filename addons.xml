@@ -71,6 +71,7 @@
         <summary lang="it_IT">TV in diretta, ovunque</summary>
         <summary lang="pt_BR">TV ao vivo, em qualquer lugar</summary>
         <summary lang="sv_SE">Direktsänd tv, överallt</summary>
+        <summary lang="zh_CN">电视直播，无处不在</summary>
         <description lang="bs_BA">Gledajte svoje omiljene programe na Kodiju. Kanali pružaju objedinjeno iskustvo na svim vašim televizorima, uređajima i toking platformama.</description>
         <description lang="da_DK">Se dine yndlingsprogrammer i Kodi. Kanaler leverer en samlet oplevelse på tværs af alle dine tv, enheder og streamingplatforme.</description>
         <description lang="en_GB">Watch your favorite programs on Kodi. Channels delivers a unified experience across all your TVs, devices, and streaming platforms.</description>
@@ -80,6 +81,7 @@
         <description lang="it_IT">Guarda i tuoi programmi preferiti su Kodi. Channels ti offre un&apos;esperienza unificata su tutte le tue TV, dispositivi e piattaforme di streaming.</description>
         <description lang="pt_BR">Assista seus programas favoritos no Kodi. O Channels oferece uma experiência unificada em todas as suas TVs, dispositivos e plataformas de streaming.</description>
         <description lang="sv_SE">Titta på dina favoritprogram på Kodi. Channels erbjuder en enhetlig upplevelse på alla dina TV-apparater, enheter och streamingplattformar.</description>
+        <description lang="zh_CN">在 Kodi 上观看您喜爱的节目。频道可在您的所有电视、设备和流媒体平台上提供统一的体验。</description>
     </extension>
 </addon>
 
@@ -217,6 +219,7 @@
         <summary lang="pt_BR">Navegarpelo PlayOn do Kodi.</summary>
         <summary lang="ru_RU">Просматривайте PlayOn из Kodi.</summary>
         <summary lang="sv_SE">Bläddra i PlayOn från Kodi.</summary>
+        <summary lang="zh_CN">从 Kodi 浏览 PlayOn。</summary>
         <description lang="bs_BA">PlayOn je marka i softverski paket za prijenos medija koji korisnicima omogućava gledanje i snimanje videa s brojnih mrežnih pružatelja sadržaja.</description>
         <description lang="da_DK">PlayOn er et streaming mediemærke og softwaresuite, der gør det muligt for brugere at se og optage videoer fra adskillige online indholdsudbydere.</description>
         <description lang="de_DE">PlayOn ist eine Medienstreaming-Marke und eine Software-Suite, die es Nutzern ermöglicht, Videos von zahlreichen Online-Anbietern anzusehen und aufzunehmen.</description>
@@ -228,6 +231,7 @@
         <description lang="pt_BR">O PlayOn é uma marca de mídia de streaming e pacote de software que permite aos usuários visualizar e gravar vídeos de vários provedores de conteúdo online.</description>
         <description lang="ru_RU">PlayOn - это бренд потокового мультимедиа и программный пакет, который позволяет пользователям просматривать и записывать видео от многочисленных поставщиков онлайн контента.</description>
         <description lang="sv_SE">PlayOn är ett varumärke för strömmande media och en programvarusvit som gör det möjligt för användare att visa och spela in videor från ett stort antal leverantörer av onlineinnehåll.</description>
+        <description lang="zh_CN">PlayOn 是一款流媒体品牌及软件套件，能让用户从众多在线内容提供商处观看并录制视频。</description>
         <disclaimer lang="bs_BA">Zahtijeva Playon serverski softver</disclaimer>
         <disclaimer lang="da_DK">Kræver Playon server software</disclaimer>
         <disclaimer lang="de_DE">Erfordert Playon-Serversoftware</disclaimer>
@@ -239,6 +243,7 @@
         <disclaimer lang="pt_BR">Requer o Software Servidor Playon</disclaimer>
         <disclaimer lang="ru_RU">Требуется серверное ПО Playon</disclaimer>
         <disclaimer lang="sv_SE">Kräver serverprogramvaran för PlayOn</disclaimer>
+        <disclaimer lang="zh_CN">需安装 PlayOn 服务器软件</disclaimer>
     </extension>
 </addon>
 
@@ -514,7 +519,7 @@
     </extension>
 </addon>
 
-<addon id="script.kodi.android.update" name="Kodi Android Installer" version="1.3.7" provider-name="Team Kodi">
+<addon id="script.kodi.android.update" name="Kodi Android Installer" version="1.3.9" provider-name="Team Kodi">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.six" version="1.0.0"/>
@@ -578,7 +583,7 @@
     </extension>
 </addon>
 
-<addon id="script.kodi.windows.update" name="Kodi Windows Installer" version="1.3.5" provider-name="Team Kodi">
+<addon id="script.kodi.windows.update" name="Kodi Windows Installer" version="1.3.9" provider-name="Team Kodi">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.six" version="1.0.0"/>
@@ -785,7 +790,7 @@
         <summary lang="pt_BR">Integre canais de IPTV de outros complementos nos menus Kodi TV e Radio</summary>
         <summary lang="ru_RU">Интеграция IPTV каналов из других дополнений в Kodi PVR</summary>
         <summary lang="sv_SE">Integrera IPTV-kanaler från andra tillägg i Kodi TV- och radiomenyerna</summary>
-        <summary lang="zh_CN">在KODI电视和电台菜单中集成来自其他插件的IPTV频道</summary>
+        <summary lang="zh_CN">在 KODI电视和电台菜单中集成来自其他插件的 IPTV 频道</summary>
         <description lang="bs_BA">IPTV Menadžer integrira IPTV kanale iz drugih dodataka u Kodi TV i Radio menije.</description>
         <description lang="cs_CZ">IPTV Manager integruje IPTV kanály z jiných doplňků do nabídky Kodi TV a Rádio.</description>
         <description lang="da_DK">IPTV Manager integrerer IPTV-kanaler fra andre add-ons i Kodi tv- og radio-menuerne.</description>
@@ -805,7 +810,7 @@
         <description lang="pt_BR">O IPTV Manager integra canais de IPTV de outros complementos nos menus Kodi TV e Radio.</description>
         <description lang="ru_RU">Это дополнение интегрирует IPTV каналы из других дополнений в Kodi PVR.</description>
         <description lang="sv_SE">IPTV Manager integrerar IPTV-kanaler från andra tillägg i Kodi TV- och radiomenyerna.</description>
-        <description lang="zh_CN">IPTV管理器可以在KODI电视和电台菜单中集成来自其他插件的IPTV频道。</description>
+        <description lang="zh_CN">IPTV 管理器可以在 KODI 电视和电台菜单中集成来自其他插件的 IPTV 频道。</description>
     </extension>
 </addon>
 

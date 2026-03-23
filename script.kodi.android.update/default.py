@@ -1,4 +1,4 @@
-#  Copyright (C) 2024 Team-Kodi
+#  Copyright (C) 2026 Team-Kodi
 #
 #  This file is part of script.kodi.android.update
 #
@@ -76,27 +76,24 @@ socket.setdefaulttimeout(TIMEOUT)
 class Installer(object):
     def __init__(self):
         self.myMonitor = xbmc.Monitor()
-        self.cache = SimpleCache()
-        if not self.chkVersion(): return
-        self.lastURL  = (REAL_SETTINGS.getSetting("LastURL") or self.buildMain())
-        self.lastPath = REAL_SETTINGS.getSetting("LastPath")
+        self.cache     = SimpleCache()
+        self.lastURL   = REAL_SETTINGS.getSetting("LastURL")
+        self.lastPATH  = REAL_SETTINGS.getSetting("LastPATH")
+        self.chkVer()
+        
+    def _run(self):
+        if not self.lastURL: self.lastURL = self.buildMain()
         self.selectPath(self.lastURL)
         
         
-    def disable(self, build):
-        xbmcgui.Dialog().notification(ADDON_NAME, VERSION, ICON, 8000)
-        if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30011)%(build), LANGUAGE(30012)): return False 
-        xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method":"Addons.SetAddonEnabled","params":{"addonid":"%s","enabled":false}, "id": 1}'%(ADDON_ID))
-        xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30009), ICON, 4000)
-        return False
-        
-        
-    def chkVersion(self):
-        try: 
-            build = int(re.compile('Android (\d+)').findall(VERSION)[0])
+    def chkVer(self):
+        try:    build = int(re.compile('Android (\d+)').findall(VERSION)[0])
         except: build = MIN_VER
-        if build >= MIN_VER: return True
-        else: return self.disable(build)
+        if build < MIN_VER:
+            xbmcgui.Dialog().notification(ADDON_NAME, VERSION, ICON, 8000)
+            if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30011)%(build), LANGUAGE(30012)): return False 
+            xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method":"Addons.SetAddonEnabled","params":{"addonid":"%s","enabled":false}, "id": 1}'%(ADDON_ID))
+            xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30009), ICON, 4000)
         
 
     def openURL(self, url):
@@ -142,7 +139,6 @@ class Installer(object):
             for item in self.getItems(soup):
                 try: #folders
                     label, label2 = re.compile("(.*?)/-(.*)").match(item).groups()
-                    print('buildItems',label,label2)
                     if   label == PLATFORM:               label2 = LANGUAGE(30014)%PLATFORM
                     elif label.lower() == BRANCH.lower(): label2 = LANGUAGE(30022)%(BUILD.get('major',''),BUILD.get('minor',''),BUILD.get('revision',''))
                     else:                                 label2 = '' #Don't use time-stamp for folders
@@ -169,7 +165,7 @@ class Installer(object):
             items  = list(self.buildItems(url))
             if   len(items) == 0: break
             elif len(items) == 2 and not bypass and items[0].getLabel().lower() == 'parent directory' and not items[1].getLabel().startswith('.apk'): select = 1 #If one folder bypass selection.
-            else: select = selectDialog(url.replace(BASE_URL,'./').replace('//','/'), items)
+            else: select = selectDialog(url.replace(BASE_URL,'./').replace('//','/'), items, [idx for idx, item in enumerate(items) if item.getLabel() in self.lastPATH])
             if select is None: return #return on cancel.
             label  = items[select].getLabel()
             newURL = items[select].getPath()
@@ -189,34 +185,21 @@ class Installer(object):
     def fileExists(self, dest):
         if xbmcvfs.exists(dest):
             if not xbmcgui.Dialog().yesno(ADDON_NAME, LANGUAGE(30004), dest.rsplit('/', 1)[-1], nolabel=LANGUAGE(30005), yeslabel=LANGUAGE(30006)): return True
-        elif CLEAN and xbmcvfs.exists(self.lastPath): self.deleleAPK(self.lastPath)
         return False
         
         
-    def deleleAPK(self, path):
-        count = 0
-        #some file systems don't release the file lock instantly.
-        while not self.myMonitor.abortRequested() and count < 3:
-            count += 1
-            if self.myMonitor.waitForAbort(1): return 
-            try: 
-                if xbmcvfs.delete(path): return
-            except: pass
-            
-        
     def downloadAPK(self, url, dest):
-        if self.fileExists(dest): return self.installAPK(dest)
-        start_time = time.time()
-        dia = xbmcgui.DialogProgress()
-        fle = dest.rsplit('/', 1)[1]
-        dia.create(ADDON_NAME, LANGUAGE(30002)%fle)
-        try: urllib.request.urlretrieve(url.rstrip('/'), dest, lambda nb, bs, fs: self.pbhook(nb, bs, fs, dia, start_time, fle))
-        except Exception as e:
-            dia.close()
-            xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30001), ICON, 4000)
-            log("downloadAPK, Failed! (%s) %s"%(url,str(e)), xbmc.LOGERROR)
-            return self.deleleAPK(dest)
-        dia.close()
+        if not self.fileExists(dest):
+            start_time = time.time()
+            dia = xbmcgui.DialogProgress()
+            fle = dest.rsplit('/', 1)[1]
+            dia.create(ADDON_NAME, LANGUAGE(30002)%fle)
+            try: urllib.request.urlretrieve(url.rstrip('/'), dest, lambda nb, bs, fs: self.pbhook(nb, bs, fs, dia, start_time, fle))
+            except Exception as e:
+                dia.close()
+                xbmcgui.Dialog().notification(ADDON_NAME, LANGUAGE(30001), ICON, 4000)
+                self.deleleAPK(dest)
+                return log("downloadAPK, Failed! (%s) %s"%(url,str(e)), xbmc.LOGERROR)
         return self.installAPK(dest)
         
         
@@ -242,6 +225,19 @@ class Installer(object):
         if dia.iscanceled(): raise Exception
             
             
+    def deleleAPK(self, file):
+        try:
+            count = 0
+            while not self.myMonitor.abortRequested() and count < 15:
+                if   self.myMonitor.waitForAbort(1): break
+                elif xbmcvfs.exists(file):
+                    count += 1 
+                    if xbmcvfs.delete(file):
+                        log(f'Installer: deleleAPK = {file}')
+                        break
+        except Exception as e: log("Installer: deleleAPK Failed! " + str(e), xbmc.LOGERROR)
+            
+        
     def installAPK(self, apkfile):
         xbmc.executebuiltin('StartAndroidActivity(%s,,,"content://%s")'%(FMANAGER,apkfile))
         # xbmc.executebuiltin('StartAndroidActivity("","android.intent.action.INSTALL_PACKAGE ","application/vnd.android.package-archive","content://%s")'%apkfile)
