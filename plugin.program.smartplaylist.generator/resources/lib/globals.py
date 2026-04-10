@@ -1,4 +1,4 @@
-#   Copyright (C) 2024 Lunatixz
+#   Copyright (C) 2025 Lunatixz
 #
 #
 # This file is part of Smartplaylist Generator.
@@ -80,7 +80,7 @@ def poolit(method):
         return list([_f for _f in results if _f])
     return wrapper
 
-def cacheit(expiration=datetime.timedelta(hours=int(REAL_SETTINGS.getSetting('Run_Every')), minutes=15), checksum=ADDON_VERSION, json_data=True):
+def cacheit(expiration=datetime.timedelta(minutes=15), checksum=ADDON_VERSION, json_data=True):
     def internal(method):
         @wraps(method)
         def wrapper(*args, **kwargs):

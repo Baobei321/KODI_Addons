@@ -77,7 +77,7 @@ msgid "Run while Playing"
 msgstr ""
 
 msgctxt "#32012"
-msgid "Remove duplicate library entries"
+msgid "Remove shadow (duplicate) library entries that share the same file name."
 msgstr ""
 
 msgctxt "#32013"
@@ -87,3 +87,6 @@ msgstr ""
 msgctxt "#32014"
 msgid "Only Run when Idle"
 msgstr ""
+
+
+

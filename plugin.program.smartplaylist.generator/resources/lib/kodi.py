@@ -1,4 +1,4 @@
-#   Copyright (C) 2024 Lunatixz
+#   Copyright (C) 2025 Lunatixz
 #
 #
 # This file is part of Smartplaylist Generator.
@@ -20,6 +20,8 @@
 from globals import *
 
 class Kodi:
+    hasPseudoTV = xbmc.getCondVisibility('System.HasAddon(plugin.video.pseudotv.live)')
+    
     def __init__(self, cache=None):
         if cache is None: self.cache = SimpleCache()
         else:

@@ -16,18 +16,6 @@ msgstr ""
 "Language: en\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgctxt "Addon Summary"
-msgid "Generate Smartplaylists from third-party lists."
-msgstr ""
-
-msgctxt "Addon Description"
-msgid "Generate Smartplaylists from third-party lists."
-msgstr ""
-
-msgctxt "Addon Disclaimer"
-msgid "BETA PROJECT; SUBJECT TO BUGS"
-msgstr ""
-
 msgctxt "#32000"
 msgid "General"
 msgstr ""
@@ -61,7 +49,7 @@ msgid "Smartplaylist match content based on Title or File."
 msgstr ""
 
 msgctxt "#32008"
-msgid "Run every"
+msgid "Run every x hours."
 msgstr ""
 
 msgctxt "#32009"
@@ -178,4 +166,36 @@ msgstr ""
 
 msgctxt "#32111"
 msgid "Auto Enable all lists"
+msgstr ""
+
+msgctxt "#32112"
+msgid "IMDB"
+msgstr ""
+
+msgctxt "#32113"
+msgid "Enable IMDB"
+msgstr ""
+
+msgctxt "#32114"
+msgid "Enter IMDB Username"
+msgstr ""
+
+msgctxt "#32115"
+msgid "Generate M3U Playlist [Work in progress]"
+msgstr ""
+
+msgctxt "#32116"
+msgid ""
+msgstr ""
+
+msgctxt "#32117"
+msgid "M3U Playlist Path"
+msgstr ""
+
+msgctxt "#32118"
+msgid "Basic Playlists allow Mixed (TV/Movie) Chronological Playlists."
+msgstr ""
+
+msgctxt "#32119"
+msgid "Options"
 msgstr ""

@@ -40,51 +40,56 @@ ICON                = REAL_SETTINGS.getAddonInfo('icon')
 FANART              = REAL_SETTINGS.getAddonInfo('fanart')
 LANGUAGE            = REAL_SETTINGS.getLocalizedString
 
+DEFAULT_ENCODING    = "utf-8"
+
 def log(msg, level=xbmc.LOGDEBUG):
     if not REAL_SETTINGS.getSettingBool('Enable_Debugging') and level != xbmc.LOGERROR: return
     if level == xbmc.LOGERROR: msg = '%s, %s'%(msg,traceback.format_exc())
     xbmc.log('%s-%s-%s'%(ADDON_ID,ADDON_VERSION,str(msg)),level)
-
-def dumpJSON(item, idnt=None, sortkey=False, separators=(',', ':')):
-    try:
-        if not isinstance(item,str):
-            return json.dumps(item, indent=idnt, sort_keys=sortkey, separators=separators)
-        elif isinstance(item,str):
-            return item
-    except Exception as e: log("dumpJSON, failed! %s"%(e), xbmc.LOGERROR)
-    return ''
     
-def loadJSON(item):
+def dumpPICKLE(item={}, fle=None):
     try:
-        if hasattr(item, 'read'):
-            return json.load(item)
-        elif item and isinstance(item,str):
-            return json.loads(item)
-        elif item and isinstance(item,dict):
-            return item
-    except Exception as e: log("loadJSON, failed! %s\n%s"%(e,item), xbmc.LOGERROR)
-    return {}
+        if fle and hasattr(item,'write'):        
+            pickle.dump(item, fle)
+            return True
+        if isinstance(item, (bytes, bytearray)): return item
+        return pickle.dumps(item)
+    except Exception as e:
+        log('dumpPICKLE failed! %s'%(e), xbmc.LOGERROR)
+        return None
     
-def dumpPICKLE(item):
+def loadPICKLE(item="", encoding=DEFAULT_ENCODING):
+    try:        
+        if not item:              return None
+        if hasattr(item,'read'):  return pickle.load(item)
+        if isinstance(item, str): item = item.encode('latin-1')
+        return pickle.loads(item)
+    except pickle.UnpicklingError: pass
+    except Exception as e:
+        log('loadPICKLE failed! %s'%(e), xbmc.LOGERROR)
+        return None
+    
+def dumpJSON(item={}, fle=None, idnt=None, sortkey=False, separators=(',', ':')):
     try:
-        if not isinstance(item,str):
-            return pickle.dumps(item)
-        elif isinstance(item,str):
-            return item
-    except Exception as e: log("dumpPICKLE, failed! %s"%(e), xbmc.LOGERROR)
-    return ''
-    
-def loadPICKLE(item):
+        if fle and hasattr(item,'write'):    
+            json.dump(item, fle, indent=idnt, sort_keys=sortkey, separators=separators)
+            return True
+        if isinstance(item, (str, bytes)): return item
+        return json.dumps(item, indent=idnt, sort_keys=sortkey, separators=separators)
+    except Exception as e:
+        log('dumpJSON failed! %s'%(e), xbmc.LOGERROR)
+        return ''
+        
+def loadJSON(item=""):
     try:
-        if hasattr(item, 'read'):
-            return pickle.load(item)
-        elif item and isinstance(item,str):
-            return pickle.loads(item)
-        elif item and isinstance(item,list):
-            return item
-    except Exception as e: log("loadPICKLE, failed! %s\n%s"%(e,item), xbmc.LOGERROR)
-    return []
-    
+        if not item: return {}
+        if isinstance(item, (dict, list)): return item
+        if hasattr(item, 'read'):          return json.load(item)
+        if isinstance(item, (str, bytes)): return json.loads(item)
+    except Exception as e:
+        log('loadJSON failed! %s'%(e), xbmc.LOGERROR)
+        return {}
+        
 def cacheit(expiration=datetime.timedelta(seconds=REAL_SETTINGS.getSettingInt('Start_Delay')), checksum=ADDON_VERSION, json_data=True):
     def internal(method):
         @wraps(method)
@@ -98,26 +103,44 @@ def cacheit(expiration=datetime.timedelta(seconds=REAL_SETTINGS.getSettingInt('S
             return method_class.cache.set(cacheName.lower(), method(*args, **kwargs), checksum, expiration, json_data)
         return wrapper
     return internal
+    
+@contextmanager
+def timeit(method):
+    start_time = time.time()
+    try: yield
+    finally:
+        end_time = time.time()
+        log('%s timeit => %.2f ms'%(method.__qualname__.replace('.',': '),(end_time-start_time)*1000))
 
 def timerit(method):
     @wraps(method)
     def wrapper(wait, *args, **kwargs):
-        thread_name = 'timerit.%s'%(method.__qualname__.replace('.',': '))
-        for timer in thread_enumerate():
-            if timer.name == thread_name and timer.is_alive():
-                if hasattr(timer, 'cancel'): 
-                    timer.cancel()
-                    log('%s, canceling existing timer %s'%(method.__qualname__.replace('.',': '),thread_name))    
-                try: 
-                    timer.join()
-                    log('%s, joining existing timer %s'%(method.__qualname__.replace('.',': '),thread_name))    
-                except: pass
-        timer = Timer(float(wait), method, *args, **kwargs)
-        timer.name = thread_name
-        timer.start()
-        log('%s, starting %s wait = %s'%(method.__qualname__.replace('.',': '),thread_name,wait))
-        return timer
-    return wrapper  
+        with wrapper._lock:  # Use wrapper's lock
+            if wrapper._active_timer is not None:
+                wrapper._active_timer.cancel()
+                log('%s, canceling existing Timer: %s' % (method.__qualname__.replace('.', ': '), wrapper._active_timer.name))
+
+            def __run():
+                try:
+                    with timeit(method):
+                        method(*args, **kwargs)
+                    log('%s, running %s' % (method.__qualname__.replace('.', ': => -:'), timer.name))
+                except Exception as e:
+                    log('%s, failed! %s' % (method.__qualname__.replace('.', ': '), e), xbmc.LOGERROR)
+                finally:
+                    with wrapper._lock:
+                        wrapper._active_timer = None
+
+            timer = Timer(float(wait), __run)
+            timer.name = 'timerit.%s' % (method.__qualname__.replace('.', ': '))
+            wrapper._active_timer = timer
+            timer.start()
+            log('%s, starting %s wait = %s' % (method.__qualname__.replace('.', ': '), timer.name, wait))
+            return timer
+
+    wrapper._active_timer = None
+    wrapper._lock = Lock()
+    return wrapper
 
 def isScanning():
     return (xbmc.getCondVisibility('Library.IsScanningVideo') or False)

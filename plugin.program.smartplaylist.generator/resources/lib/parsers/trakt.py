@@ -1,4 +1,4 @@
-#   Copyright (C) 2024 Lunatixz
+#   Copyright (C) 2025 Lunatixz
 #
 #
 # This file is part of Smartplaylist Generator.
@@ -21,6 +21,7 @@ from globals import *
 
 class Trakt:
     def __init__(self, cache=None):
+        self.monitor = MONITOR()
         if cache is None: self.cache = SimpleCache()
         else:
             self.cache = cache
@@ -44,59 +45,95 @@ class Trakt:
         
         
     @cacheit(expiration=datetime.timedelta(minutes=15))
-    def get_lists(self, trakt_user=REAL_SETTINGS.getSetting('Trakt_Username'), client_id=REAL_SETTINGS.getSetting('Trakt_ClientID')):
+    def get_lists(self):
         tmp = []
+        trakt_user   = REAL_SETTINGS.getSetting('Trakt_Username')
+        access_token = REAL_SETTINGS.getSetting('Trakt_TokenID')
         url = f"https://api.trakt.tv/users/{trakt_user}/lists"
         self.log('get_lists, trakt_user = %s, url = %s'%(trakt_user,url))
         headers = { 'Content-Type': 'application/json',
                     'trakt-api-version': '2',
-                    'trakt-api-key': client_id}
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200: 
-            for item in response.json(): 
-                tmp.append({'name':self.clean_string(item.get('name')),'description':self.clean_string(item.get('description')),'id':str(item.get('ids',{}).get('trakt')),'icon':self.logo})
-        else: self.log("get_lists, failed! to fetch data from Trakt:", response.status_code)
-        if len(tmp) > 0: return sorted(tmp,key=itemgetter('name'))
-        else:            return None
-        
-
-    @cacheit()
-    def get_list_items(self, list_id, client_id=REAL_SETTINGS.getSetting('Trakt_ClientID')):
+                    'trakt-api-key': REAL_SETTINGS.getSetting('Trakt_ClientID')}
+        if access_token: headers['Authorization'] = f'Bearer {access_token}'
+        current_page   = 1
+        limit = 1000 # Maximize to reduce calls
+        while not self.monitor.abortRequested():
+            params   = {'page': current_page, 'limit': limit}
+            response = requests.get(url, headers=headers, params=params)
+            print('response',response,url,params,headers)
+            if response.status_code != 200: 
+                self.log("get_lists, failed! to fetch data from Trakt: %s"%(response.status_code))
+                break
+            else:
+                for item in response.json(): 
+                    tmp.append({'name':self.clean_string(item.get('name')),'description':self.clean_string(item.get('description')),'id':str(item.get('ids',{}).get('trakt')),'icon':self.logo})
+                # X-Pagination-Page-Count: Total pages available
+                # X-Pagination-Item-Count: Total items across all pages
+                total_pages = int(response.headers.get('X-Pagination-Page-Count', 1))
+                total_items = int(response.headers.get('X-Pagination-Item-Count', 0))
+                self.log(f"get_lists, Fetched page {current_page}/{total_pages} (Total Items: {total_items})")
+                if current_page >= total_pages: break
+                elif self.monitor.waitForAbort(0.5): break
+                current_page += 1
+        return sorted(tmp,key=itemgetter('name')) if tmp else None
+                
+            
+    @cacheit(expiration=datetime.timedelta(minutes=15))
+    def get_list_items(self, list_id):
         tmp = {}
+        limit = 1000 # Maximize to reduce calls
         for list_type in ['movie','show','season','episode','person']:
-            url = f"https://api.trakt.tv/lists/{list_id}/items/{list_type}"
-            self.log('get_list_items, list_id = %s, url = %s'%(list_id,url))
-            headers = { 'Content-Type': 'application/json',
-                        'trakt-api-version': '2',
-                        'trakt-api-key': client_id}
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                for item in response.json():
-                    if list_type == 'person':
-                        for type, items in list(self.get_trakt_person(item.get(list_type,{}).get('ids',{}).get('trakt')).items()):
-                            tmp.setdefault(type,[]).extend(items)
-                    else:
-                        if list_type == 'season' and 'show' in item: item[list_type].update(item.pop('show'))
-                        tmp.setdefault(self.convert_type(list_type),[]).append({'type':item.get('type'),'title':item.get(list_type,{}).get('title'),'year':item.get(list_type,{}).get('year'),'season':item.get(list_type,{}).get('number'),'uniqueid':item.get(list_type,{}).get('ids'),'data':item})
-            else: self.log("get_list_items, failed! to fetch data from Trakt:", response.status_code)
-        if len(tmp) > 0: return tmp
-        else:            return None
+            page = 1
+            while not self.monitor.abortRequested():
+                url = f"https://api.trakt.tv/lists/{list_id}/items/{list_type}"
+                params  = {'page': page, 'limit': limit}
+                headers = {
+                    'Content-Type': 'application/json',
+                    'trakt-api-version': '2',
+                    'trakt-api-key': REAL_SETTINGS.getSetting('Trakt_ClientID')}
+                response = requests.get(url, headers=headers, params=params)
+                if response.status_code != 200:
+                    self.log("get_list_items, failed! to fetch data from Trakt: %s [%s]"%(response.status_code,list_type))
+                    break
+                else:
+                    results = response.json()
+                    for item in results:
+                        if list_type == 'person':
+                            tmlLST = self.get_trakt_person(item.get(list_type,{}).get('ids',{}).get('trakt'))
+                            for type, items in list(tmlLST.items()):
+                                tmp.setdefault(type,[]).extend(items)
+                        else:
+                            if list_type == 'season' and 'show' in item: item[list_type].update(item.pop('show'))
+                            tmp.setdefault(self.convert_type(list_type),[]).append({'type':item.get('type'),'title':item.get(list_type,{}).get('title'),'year':item.get(list_type,{}).get('year'),'season':item.get(list_type,{}).get('number'),'uniqueid':item.get(list_type,{}).get('ids'),'data':item})
+                    self.log("get_list_items, %s = %s, page = %s"%(list_type,len(results),page))
+                    # Check if more pages exist via Trakt headers
+                    total_pages = int(response.headers.get('X-Pagination-Page-Count', 1))
+                    if page >= total_pages: break
+                    page += 1
+        return tmp
         
         
-    @cacheit()
-    def get_trakt_person(self, trakt_id, client_id=REAL_SETTINGS.getSetting('Trakt_ClientID')):
-        tmp  = {}
-        urls = {'movie':f"https://api.trakt.tv/people/{trakt_id}/movies",
-                'show' :f"https://api.trakt.tv/people/{trakt_id}/shows"}
+    @cacheit(expiration=datetime.timedelta(minutes=15))
+    def get_trakt_person(self, trakt_id):
+        tmp   = {}
+        limit = 1000 # Maximize to reduce calls
+        urls  = {'movie':f"https://api.trakt.tv/people/{trakt_id}/movies",
+                 'show' :f"https://api.trakt.tv/people/{trakt_id}/shows"}
         headers = { 'Content-Type': 'application/json',
                     'trakt-api-version': '2',
-                    'trakt-api-key': client_id}
+                    'trakt-api-key': REAL_SETTINGS.getSetting('Trakt_ClientID')}
         for list_type, url in list(urls.items()):
-            self.log('get_trakt_person, trakt_id = %s, url = %s'%(trakt_id,url))
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                for item in response.json().get('cast',[]):
-                    tmp.setdefault(self.convert_type(list_type),[]).append({'type':list_type,'title':item.get(list_type,{}).get('title'),'year':item.get(list_type,{}).get('year'),'season':item.get(list_type,{}).get('number'),'uniqueid':item.get(list_type,{}).get('ids'),'data':item})
-            else: self.log("get_trakt_person, failed! to fetch data from Trakt:", response.status_code)
-        if len(tmp) > 0: return tmp
-        else:            return None
+            page = 1
+            while not self.monitor.abortRequested():
+                params   = {'page': page, 'limit': limit}
+                response = requests.get(base_url, headers=headers, params=params)
+                if response.status_code != 200:
+                    self.log("get_trakt_person, failed! to fetch data from Trakt: %s"%(response.status_code))
+                    break
+                else:
+                    for item in response.json().get('cast',[]):
+                        tmp.setdefault(self.convert_type(list_type),[]).append({'type':list_type,'title':item.get(list_type,{}).get('title'),'year':item.get(list_type,{}).get('year'),'season':item.get(list_type,{}).get('number'),'uniqueid':item.get(list_type,{}).get('ids'),'data':item})
+                    total_pages = int(response.headers.get('X-Pagination-Page-Count', 1))
+                    if page >= total_pages: break
+                    page += 1
+        return tmp

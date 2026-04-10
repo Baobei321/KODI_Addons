@@ -23,6 +23,26 @@
                     <default>false</default>
                     <control type="toggle"/>
                 </setting>
+				<setting id="M3U_Enable" type="boolean" label="32115" help="32118">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+                <setting id="M3U_LOC" type="path" label="32117" help="" parent="M3U_Enable">
+                    <level>0</level>
+                    <default>special://profile/playlists/video/</default>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="visible">
+                            <condition operator="is" setting="M3U_Enable">true</condition>
+                        </dependency>
+                    </dependencies>
+                    <control type="button" format="path">
+                        <heading>32016</heading>
+                    </control>
+                </setting>
             </group>
         </category>
         <category id="Service" label="32014" help="">
@@ -32,28 +52,26 @@
                     <default>true</default>
                     <control type="toggle"/>
                 </setting>
-                <setting id="Run_Every" type="string" label="32008" help="">
+                <setting id="Run_Every_Hours" type="integer" label="32008" help="">
                     <level>0</level>
-                    <default>0</default>
-                    <constraints>
-                        <options>
-                            <option label="32013">0</option>
-                            <option label="32009">6</option>
-                            <option label="32010">12</option>
-                            <option label="32011">24</option>
-                            <option label="32012">48</option>
-                        </options>
+                    <default>24</default>
+					<constraints>
+                        <minimum>0</minimum>
+                        <step>3</step>
+                        <maximum>72</maximum>
                     </constraints>
-                    <control type="spinner" format="string"/>
+                    <control type="slider" format="integer">
+                        <popup>false</popup>
+                    </control>
                 </setting>
-                <setting id="Last_Update" type="string" label="32006" help="" parent="Run_Every">
+                <setting id="Last_Update" type="string" label="32006" help="" parent="Run_Every_Hours">
                     <level>0</level>
                     <constraints>
                         <allowempty>true</allowempty>
                     </constraints>
                     <dependencies>
                         <dependency type="visible">
-                            <condition operator="!is" setting="Run_Every">0</condition>
+                            <condition operator="!is" setting="Run_Every_Hours">0</condition>
                         </dependency>
                     </dependencies>
                     <control type="button" format="action">
@@ -64,7 +82,7 @@
             </group>
         </category>
         <category id="Trakt" label="32100" help="">
-            <group id="1" label="32100">
+            <group id="0" label="32100">
                 <setting id="Enable_Trakt" type="boolean" label="32107" help="">
                     <level>0</level>
                     <default>false</default>
@@ -134,6 +152,66 @@
                     </dependencies>
                     <control type="button" format="action">
                         <data>RunScript(special://home/addons/plugin.program.smartplaylist.generator/resources/lib/default.py, Build_Trakt)</data>
+                        <close>true</close>
+                    </control>
+                </setting>
+            </group>
+        </category>
+		<category id="IMDB" label="32112" help="">
+            <group id="0" label="32112">
+                <setting id="Enable_IMDB" type="boolean" label="32113" help="">
+                    <level>0</level>
+                    <default>false</default>
+                    <control type="toggle"/>
+                </setting>
+                <setting id="IMDB_ClientID" type="string" label="32101" help="32113" parent="Enable_IMDB">
+                    <level>0</level>
+                    <default></default>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="visible">
+                            <condition operator="is" setting="Enable_IMDB">true</condition>
+                        </dependency>
+                    </dependencies>
+                    <control type="edit" format="string">
+                        <heading>32102</heading>
+                    </control>
+                </setting>
+                <setting id="Select_IMDB" type="string" label="32105" help="32109" parent="Enable_IMDB">
+                    <level>0</level>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="visible">
+                            <and>
+                                <condition operator="is" setting="Enable_IMDB">true</condition>
+                                <condition operator="!is" setting="IMDB_ClientID"></condition>
+                            </and>
+                        </dependency>
+                    </dependencies>
+                    <control type="button" format="action">
+                        <data>RunScript(special://home/addons/plugin.program.smartplaylist.generator/resources/lib/default.py, Select_IMDB)</data>
+                        <close>true</close>
+                    </control>
+                </setting>
+                <setting id="Build_IMDB" type="string" label="32106" help="32110" parent="Enable_IMDB">
+                    <level>0</level>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="visible">
+                            <and>
+                                <condition operator="is" setting="Enable_IMDB">true</condition>
+                                <condition operator="!is" setting="IMDB_ClientID"></condition>
+                            </and>
+                        </dependency>
+                    </dependencies>
+                    <control type="button" format="action">
+                        <data>RunScript(special://home/addons/plugin.program.smartplaylist.generator/resources/lib/default.py, Build_IMDB)</data>
                         <close>true</close>
                     </control>
                 </setting>

@@ -1,4 +1,4 @@
-#   Copyright (C) 2025 Lunatixz
+#   Copyright (C) 2026 Lunatixz
 #
 #
 # This file is part of Kodi PowerToys
@@ -157,7 +157,7 @@ class Service(object):
         self.log('_start, wait = %s'%(wait))
         self.monitor.waitForAbort(wait)
         while not self.monitor.abortRequested():
-            if    self.monitor.waitForAbort(wait): break
+            if    self.monitor.waitForAbort(2.0): break
             else: self._run()
         self._exit()
         
@@ -170,14 +170,12 @@ class Service(object):
         elif self.tasks.get('cleanMovies'):     self._que(self.cleanMovies    , -1, self.tasks.get('cleanMovies').pop(0))
         elif self.tasks.get('refreshMovie'):    self._que(refreshMovie        , -1,*self.tasks.get('refreshMovie').pop())
         elif not self.running:
-            self.log('_run, starting')
             self.running = True
             if REAL_SETTINGS.getSettingBool('Scraper_Enabled'):
                 with self._chkUpdate(self.runScraper,(REAL_SETTINGS.getSettingInt('Scraper_Interval_DAYS')*86400)): pass
             if REAL_SETTINGS.getSettingBool('Refresh_Enabled'):
                 with self._chkUpdate(self.runRefresh,(REAL_SETTINGS.getSettingInt('Refresh_Interval_DAYS')*86400),None,REAL_SETTINGS.getSettingBool('Refresh_Clean'),REAL_SETTINGS.getSettingBool('Refresh_Ignore_NFO')): pass
             self.running = False
-            self.log('_run, stopping')
 
 
     def _menu(self, sysARG):
@@ -217,7 +215,8 @@ class Service(object):
                 yield self.log('_chkUpdate, func = %s, last run %s, finished = %s' % (func.__name__, epoch - nxrun, finished))
             except: finished = False
             finally:
-                if finished: self.cache.set(func.__name__, (epoch + runevery),expiration=datetime.timedelta(days=28))
+                if finished: 
+                    self.cache.set(func.__name__, (epoch + runevery),expiration=datetime.timedelta(days=28))
         else: yield
          
 
@@ -297,7 +296,7 @@ class Service(object):
         self.log('scrapeTV path = %s'%(path))
         paths = dict([(item['file'],item) for item in shows if item.get('file')])
         items = getDirectory(path)
-        random.shuffle(items)
+        if len(items) > 0: random.shuffle(items)
         for item in items:
             if self.monitor.abortRequested(): return False
             elif not item.get('file') in paths:
@@ -307,7 +306,7 @@ class Service(object):
 
     def refreshTV(self, shows=[], clean=False, ignore=True):
         self.log('refreshTV shows = %s, clean = %s, ignore = %s'%(len(shows),clean,ignore))
-        random.shuffle(shows)
+        if len(shows) > 0: random.shuffle(shows)
         for show in shows:
             if self.monitor.abortRequested(): return False
             if clean: self.tasks.setdefault('cleanTV',set()).add(show.get('tvshowid',-1))
@@ -316,18 +315,19 @@ class Service(object):
         
 
     def cleanMovies(self, movies, master=None):
-        try:
+        def __findShadowCopy(movies):
             for idx, mv in enumerate(movies):
                 if xbmcvfs.exists(mv.get('file')):
-                    try: master = movies.pop(idx)
-                    except: pass
-                    break
-            if master is None: return self.log('cleanMovies, duplicate files do not exist!')#all episodes found don't exist? todo user prompt to remove?
+                    try: return movies.pop(idx)
+                    except Exception: pass
+            self.log('cleanMovies, no shadows found!')#all episodes found don't exist? todo user prompt to remove?
+        try:
+            if master is None: master = __findShadowCopy(movies) #actual file, remaining shadow duplicates.
             for movie in movies:
                 if   self.monitor.abortRequested(): return False
                 elif master.get('label') == movie.get('label') and master.get('movieid',-1) != movie.get('movieid'):
                     if not xbmcvfs.exists(movie.get('file')) or master.get('file','-1') == movie.get('file'):
-                        self.log('cleanMovies, Queuing removed duplicate %s'%(movie.get('file')))
+                        self.log('cleanMovies, Queuing remove duplicate %s'%(movie.get('file')))
                         removeMovie(movie.get('movieid'))
                     elif master.get('file','-1') != movie.get('file'): #duplicate file found
                         self.log('cleanMovies, found duplicate physical file [%s] exists [%s]'%(movie.get('file'),xbmcvfs.exists(movie.get('file')))) #todo prompt user to delete? for now cache values
@@ -342,7 +342,7 @@ class Service(object):
         self.log('scrapeMovies, path = %s'%(path))
         paths = dict([(os.path.split(item['file'])[0],item) for item in movies if item.get('file')])
         items = getDirectory(path)
-        random.shuffle(items)
+        if len(items) > 0: random.shuffle(items)
         for item in items:
             if self.monitor.abortRequested(): return False
             elif not item.get('file') in list(paths.keys()):
@@ -352,10 +352,10 @@ class Service(object):
 
     def refreshMovies(self, movies=[], clean=False, ignore=True):
         self.log('refreshMovies, movies = %s, clean = %s, ignore = %s'%(len(movies),clean,ignore))
-        random.shuffle(movies)
+        if len(movies) > 0: random.shuffle(movies)
         for movie in movies:
             if self.monitor.abortRequested(): return False
-            if clean: self.tasks.setdefault('cleanMovies',list()).extend(matchItem(movie.get('file'),movies,'file'))
+            if clean: self.tasks.setdefault('cleanMovies',list()).extend(matchItem(movie.get('file'),movies))
             self.tasks.setdefault('refreshMovie',set()).add((movie.get('movieid'),ignore))
         return True
         
