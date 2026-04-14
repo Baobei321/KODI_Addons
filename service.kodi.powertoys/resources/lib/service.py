@@ -259,7 +259,7 @@ class Service(object):
         self.log('scrapeDirectory, scraping [%s]'%(path))
         if sendJSON({"method":"VideoLibrary.Scan","params":{"directory":path,"showdialogs":show}}).get('result') == "OK":
             while not self.monitor.abortRequested():
-                if   self.monitor.waitForAbort(REAL_SETTINGS.getSettingInt('Start_Delay')): break
+                if self.monitor.waitForAbort(REAL_SETTINGS.getSettingInt('Start_Delay')): break
                 elif isScanning(): self.log('scrapeDirectory, waiting for scraper to finish...')
                 else: break
             self.log('scrapeDirectory, finished!')
@@ -276,7 +276,7 @@ class Service(object):
                         
                 if master is None: return self.log('cleanTV, duplicate files do not exist!') #all episodes found don't exist? todo user prompt to remove? check source?
                 for episode in episodes:
-                    if   self.monitor.abortRequested(): return False
+                    if self.monitor.waitForAbort(0.1): return False
                     elif master.get('label') == episode.get('label') and master.get('episodeid',-1) != episode.get('episodeid'):
                         if not xbmcvfs.exists(episode.get('file')) or master.get('file','-1') == episode.get('file'): #duplicate library entry
                             self.log('cleanTV, Queuing removed duplicate %s'%(episode.get('file')))
@@ -298,7 +298,7 @@ class Service(object):
         items = getDirectory(path)
         if len(items) > 0: random.shuffle(items)
         for item in items:
-            if self.monitor.abortRequested(): return False
+            if self.monitor.waitForAbort(0.1): return False
             elif not item.get('file') in paths:
                 self.tasks.setdefault('scrapeDirectory',set()).add(item.get('file'))
         return True
@@ -308,7 +308,7 @@ class Service(object):
         self.log('refreshTV shows = %s, clean = %s, ignore = %s'%(len(shows),clean,ignore))
         if len(shows) > 0: random.shuffle(shows)
         for show in shows:
-            if self.monitor.abortRequested(): return False
+            if self.monitor.waitForAbort(0.1): return False
             if clean: self.tasks.setdefault('cleanTV',set()).add(show.get('tvshowid',-1))
             self.tasks.setdefault('refreshTVshow',set()).add((show.get('tvshowid'),ignore))
         return True
@@ -324,7 +324,7 @@ class Service(object):
         try:
             if master is None: master = __findShadowCopy(movies) #actual file, remaining shadow duplicates.
             for movie in movies:
-                if   self.monitor.abortRequested(): return False
+                if self.monitor.waitForAbort(0.1): return False
                 elif master.get('label') == movie.get('label') and master.get('movieid',-1) != movie.get('movieid'):
                     if not xbmcvfs.exists(movie.get('file')) or master.get('file','-1') == movie.get('file'):
                         self.log('cleanMovies, Queuing remove duplicate %s'%(movie.get('file')))
@@ -344,7 +344,7 @@ class Service(object):
         items = getDirectory(path)
         if len(items) > 0: random.shuffle(items)
         for item in items:
-            if self.monitor.abortRequested(): return False
+            if self.monitor.waitForAbort(0.1): return False
             elif not item.get('file') in list(paths.keys()):
                 self.tasks.setdefault('scrapeDirectory',set()).add(item.get('file'))
         return True
@@ -354,7 +354,7 @@ class Service(object):
         self.log('refreshMovies, movies = %s, clean = %s, ignore = %s'%(len(movies),clean,ignore))
         if len(movies) > 0: random.shuffle(movies)
         for movie in movies:
-            if self.monitor.abortRequested(): return False
+            if self.monitor.waitForAbort(0.1): return False
             if clean: self.tasks.setdefault('cleanMovies',list()).extend(matchItem(movie.get('file'),movies))
             self.tasks.setdefault('refreshMovie',set()).add((movie.get('movieid'),ignore))
         return True
