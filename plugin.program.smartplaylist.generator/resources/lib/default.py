@@ -42,7 +42,7 @@ class SPGenerator:
         self.kodi      = Kodi(self.cache)
         self.xsp       = XSP()
         self.modules   = {LANGUAGE(32100):trakt.Trakt(self.cache),LANGUAGE(32112):imdb.IMDB(self.cache)}
-        
+
 
     def log(self, msg, level=xbmc.LOGDEBUG):
         return log('%s: %s'%(self.__class__.__name__,msg),level)
@@ -50,7 +50,8 @@ class SPGenerator:
         
     def auto_lists(self):
         for source, module in list(self.modules.items()):
-            self.log('auto_lists, source = %s, saving = %s'%(source,self.kodi.setCacheSetting('%s.%s'%(ADDON_ID,source),[{'name':item.get('name'),'id':item.get('id'),'icon':item.get('icon',ICON)} for item in module.get_lists()])))
+            try: self.log('auto_lists, source = %s, saving = %s'%(source,self.kodi.setCacheSetting('%s.%s'%(ADDON_ID,source),[{'name':item.get('name'),'id':item.get('id'),'icon':item.get('icon',ICON)} for item in module.get_lists()])))
+            except Exception: pass
         
         
     def build_lists(self, source, lists):
